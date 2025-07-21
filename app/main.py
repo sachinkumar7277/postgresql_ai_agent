@@ -7,8 +7,18 @@ from .services import (
     get_schema_description,
     get_data_from_raw_query
 )
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+# Add this to enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/get-sql-query")
 def get_sql_query(request: PromptRequest):
@@ -25,3 +35,9 @@ def get_dataframe(request: PromptRequest):
 def fetch_employee_data(request: RawSQLQuery):
     result = get_data_from_raw_query(text(request.raw_query))
     return result
+
+
+@app.get("/fetch-db-schema")
+def fetch_db_schema():
+    schema = get_schema_description()
+    return {"schema": schema}

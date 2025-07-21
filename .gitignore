@@ -20,3 +20,7 @@ dist/
 # IDE files (optional)
 .vscode/
 .idea/
+
+
+# Node module
+node_modules

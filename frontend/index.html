@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SQL GPT Agent</title>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React + Babel via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+
+  <!-- App script -->
+  <script type="text/babel">
+    function App() {
+      const [query, setQuery] = React.useState('');
+      const [response, setResponse] = React.useState('');
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        const res = await fetch("http://localhost:8000/get-dataframe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ prompt: query })
+        });
+        const data = await res.json();
+        setResponse(JSON.stringify(data, null, 2));
+      };
+
+      return (
+        <div style={{ padding: "20px", fontFamily: "Arial" }}>
+          <h1>🧠 SQL GPT Agent</h1>
+          <form onSubmit={handleSubmit}>
+            <textarea
+              rows="4"
+              style={{ width: "100%" }}
+              placeholder="Ask me in natural language..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            ></textarea>
+            <button type="submit" style={{ marginTop: "10px" }}>Run Query</button>
+          </form>
+          {response && (
+            <pre style={{ marginTop: "20px", background: "#f4f4f4", padding: "10px" }}>
+              {response}
+            </pre>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
