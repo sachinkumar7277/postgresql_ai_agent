@@ -24,3 +24,12 @@ dist/
 
 # Node module
 node_modules
+
+# MacOS
+.DS_Store
+
+# Selenium profiles (if any)
+user-data-dir/
+
+# Cookie file (if storing cookies)
+cookies.json
