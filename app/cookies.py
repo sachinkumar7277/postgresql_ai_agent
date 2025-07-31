@@ -9,5 +9,9 @@ def parse_cookie_string(cookie_str):
     return cookies
 
 def get_cookies_from_file(filepath="cookies.json"):
-    with open(filepath, "r") as f:
-        return json.load(f)
+    try: 
+        with open(filepath, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        return None
+    

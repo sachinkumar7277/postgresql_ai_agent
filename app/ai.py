@@ -1,3 +1,5 @@
+# API based AI Agent
+
 # import os
 # from openai import OpenAI
 # from dotenv import load_dotenv
@@ -31,48 +33,18 @@
 #     # return response.choices[0].message.content.strip()
 
 
+
+# Selenium Automation based AI Agent
+
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from .cookies import get_cookies_from_file
+from .driver_manager import get_driver
+from .session_utils import save_session_url, add_table_schema_into_session_memory
 import time
 import re
-
-
-def setup_driver():
-    options = uc.ChromeOptions()
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--start-maximized")
-    
-    # Optional: headless mode if needed
-    # options.add_argument("--headless=new")
-
-    driver = uc.Chrome(options=options)
-    driver.get("https://chatgpt.com")
-    time.sleep(5)
-    
-    
-    # Add cookies
-    cookies = get_cookies_from_file()
-    
-    for cookie in cookies:
-        if cookie["name"].startswith("__Host-"):
-            print(f"❌ Skipping HTTP-only or secure cookie: {cookie['name']}")
-            continue
-        try:
-            if 'sameSite' in cookie:
-                del cookie['sameSite']  # selenium sometimes errors on this
-            driver.add_cookie(cookie)
-        except Exception as e:
-            print(f"❌ Failed to add cookie: {cookie}\nError: {e}")
-
-    driver.get("https://chatgpt.com")  # Refresh after adding cookies
-    time.sleep(5)
-    return driver
 
 def slow_type(element, text, delay=0.01):
     for chunk in text.split('\n'):
@@ -83,11 +55,6 @@ def slow_type(element, text, delay=0.01):
 
 
 def clean_response(text):
-    # Remove common ChatGPT formatting artifacts
-    # text = text.replace("sql", "")
-    # text = text.replace("Copy", "")
-    # text = text.replace("Edit", "")
-    # Remove empty lines and trim
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     return "\n".join(lines)
 
@@ -96,8 +63,25 @@ def extract_sql_from_generated_response(response_text):
     sql_only = match.group(1).strip() if match else "No SQL query found in response."
     return sql_only
 
-def ask_gpt(schema_description, prompt):
-    driver = setup_driver()
+def get_last_sql_code_block(driver):
+    time.sleep(2)  # Give time for rendering
+
+    # Get all code blocks with SQL language
+    code_blocks = driver.find_elements(By.CSS_SELECTOR, "code.language-sql")
+
+    if not code_blocks:
+        print("No SQL code blocks found.")
+        return ""
+
+    # Pick the longest SQL block (to avoid SELECT * FROM roles; etc.)
+    sql_code = max([cb.text.strip() for cb in code_blocks], key=len)
+    print(f"SQL FETCHED FROM RESPONSE:\n{sql_code}")
+    return sql_code
+
+def ask_gpt(ai_prompt, table_schema_dict=None, user_prompt=None):
+    print("######################################### Prompt reached to deriver  $$$$$$$$$$$$$$$$$$$$$$$$$$$$44")
+    driver = get_driver()
+    print("######################################### Deriver is ready to GO $$$$$$$$$$$$$$$$$$$$$$$$$$$$44")
     time.sleep(5)
     try:
         wait = WebDriverWait(driver, 70)
@@ -105,7 +89,7 @@ def ask_gpt(schema_description, prompt):
 
         # STEP 1: Wait for textarea
         try:
-            time.sleep(10)
+            time.sleep(7)
             input_div = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div#prompt-textarea")))
             print("✅ Found input div:", input_div)
         except Exception as e:
@@ -132,9 +116,8 @@ def ask_gpt(schema_description, prompt):
 
         # STEP 4: Type prompt and submit
         try:
-            full_prompt = f"Database schema:\n{schema_description}\n\nUser request: {prompt}\nSQL Query:"
             # Usage:
-            slow_type(input_div, full_prompt)
+            slow_type(input_div, ai_prompt)
             input_div.send_keys(Keys.ENTER)
             print("✅ Prompt sent")
         except Exception as e:
@@ -163,24 +146,37 @@ def ask_gpt(schema_description, prompt):
 
         # step 6: Get sql query from sql code block from response
         try:
-            code_element = driver.find_element(By.CSS_SELECTOR, "code.language-sql")
-            sql_code = code_element.text.strip()
-            return {"requested_prompt": full_prompt, "ai_agent_prompt":full_prompt, "response": response_text, "sql_query": sql_code}
+            time.sleep(5)
+            code_element = driver.find_elements(By.CSS_SELECTOR, "code.language-sql")
+            sql_code = code_element[-1].text.strip()
+            print(f"SQL FETCHED FROM RESPONSE: {sql_code}")
+            if table_schema_dict:
+                add_table_schema_into_session_memory(table_schema_dict)
+            return {"ai_agent_prompt":ai_prompt, "user_requested_prompt": user_prompt, "response": response_text, "sql_query": sql_code}
         except Exception as e:
-            print("Failed to extract SQL:", e)
-            return "No SQL query found in response."
+            print("❌ No sql found or Failed to extract SQL:", e)
+            add_table_schema_into_session_memory(table_schema_dict)
+            return {"ai_agent_prompt":ai_prompt, "any_error_msg": e, "response": response_text, "sql_query": None}
 
     except Exception as e:
         print("❌ Fatal error:", str(e))
         raise HTTPException(status_code=500, detail=f"Fatal error: {str(e)}")
 
     finally:
-        driver.quit()
+        save_session_url(driver)
 
+def add_all_tables_as_prompt(tables):
+    prompt = f"You are a SQL Query generator, here is all my tables name {tables} please remember it, I will be sharing table schema later."
+    return ask_gpt(prompt)
+     
+# def generate_sql_query(prompt: str, schema_description: str) -> str:
+#     full_prompt = f"Database schema:\n{schema_description}\n\nUser request: {prompt}\nSQL Query:"
+#     return ask_gpt(full_prompt, user_prompt=prompt)
 
+def generate_sql_query(prompt: str) -> str:
+    print("######################################### sending prompt to chat GPT  $$$$$$$$$$$$$$$$$$$$$$$$$$$$44")
+    return ask_gpt(prompt, user_prompt=prompt)
 
-
-def generate_sql_query(prompt: str, schema_description: str) -> str:
-    return ask_gpt(schema_description, prompt)
-
-    
+def feed_table_schema_with_ai(schemas, table_schema_dict=None):
+    prompt = f"You are a SQL Query generator, please remember this table schema : {schemas} we will request SQL Query based on these later."
+    return ask_gpt(prompt, table_schema_dict=table_schema_dict)

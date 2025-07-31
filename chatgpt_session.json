@@ -1,0 +1,26 @@
+{
+  "department": {
+    "schema": "department(id UUID, name VARCHAR(100))\n",
+    "sent_to_gpt": true
+  },
+  "employee": {
+    "schema": "employee(id UUID, full_name VARCHAR(150), email VARCHAR(150), phone VARCHAR(15), date_of_joining DATE, department_id UUID, role_id UUID, manager_id UUID, team_lead_id UUID, is_active BOOLEAN, created_at TIMESTAMP)\n",
+    "sent_to_gpt": true
+  },
+  "roles": {
+    "schema": "roles(id UUID, name VARCHAR(100))\n",
+    "sent_to_gpt": true
+  },
+  "salary": {
+    "schema": "salary(id UUID, employee_id UUID, month_year DATE, basic_salary NUMERIC(10, 2), hra NUMERIC(10, 2), other_allowances NUMERIC(10, 2), deductions NUMERIC(10, 2), net_salary NUMERIC(10, 2), paid_on DATE)\n",
+    "sent_to_gpt": true
+  },
+  "project": {
+    "schema": "project(id UUID, name VARCHAR(200), description TEXT, started_at DATE, ended_at DATE)\n",
+    "sent_to_gpt": true
+  },
+  "employeeproject": {
+    "schema": "employeeproject(id UUID, employee_id UUID, project_id UUID, role VARCHAR(100), start_date DATE, end_date DATE)\n",
+    "sent_to_gpt": true
+  }
+}
